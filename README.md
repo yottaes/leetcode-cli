@@ -1,3 +1,6 @@
+![Home Screen](./assets/home_screen.png)
+![Problem Overview](./assets/problem_overview.png)
+
 # LeetCode TUI
 
 A terminal-based interface for browsing, solving, and submitting LeetCode problems, built with **Rust** and **Ratatui**.
