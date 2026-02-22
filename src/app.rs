@@ -43,7 +43,7 @@ pub enum ApiResult {
     SearchResult(Result<(Vec<ProblemSummary>, i32)>),
     ProblemFetchError(String),
     Favorites(Result<Vec<FavoriteList>>),
-    ListMutation(Result<()>),
+    ListMutation(Result<()>, String), // (result, success_message)
     PopupFavorites(Result<Vec<FavoriteList>>),
 }
 
@@ -59,6 +59,7 @@ pub struct App {
     pub config: Option<Config>,
     pub should_quit: bool,
     pub error_overlay: Option<String>,
+    pub success_message: Option<(String, u8)>, // (message, ticks remaining)
     pub login_prompt: bool,
     pub login_waiting: bool,
     pub last_opened_dir: Option<PathBuf>,
@@ -91,6 +92,7 @@ impl App {
             config,
             should_quit: false,
             error_overlay: None,
+            success_message: None,
             login_prompt,
             login_waiting: false,
             last_opened_dir: None,
@@ -269,6 +271,24 @@ impl App {
             }
         }
 
+        // Success toast (bottom center)
+        if let Some((ref msg, _)) = self.success_message {
+            let text = format!(" \u{2714} {msg} ");
+            let w = (text.len() as u16 + 2).min(area.width.saturating_sub(4));
+            let x = area.x + (area.width.saturating_sub(w)) / 2;
+            let y = area.bottom().saturating_sub(3);
+            let toast_area = Rect::new(x, y, w, 1);
+            frame.render_widget(Clear, toast_area);
+            frame.render_widget(
+                Paragraph::new(text).style(
+                    Style::default()
+                        .fg(Color::Black)
+                        .bg(Color::Green),
+                ),
+                toast_area,
+            );
+        }
+
         // Error overlay
         if let Some(ref msg) = self.error_overlay {
             let overlay_width = 50u16.min(area.width.saturating_sub(4));
@@ -342,6 +362,11 @@ impl App {
             return Ok(());
         }
 
+        // Dismiss success message on any key
+        if self.success_message.is_some() {
+            self.success_message = None;
+        }
+
         // Dismiss error overlay on Esc or q
         if self.error_overlay.is_some() {
             match key.code {
@@ -370,9 +395,10 @@ impl App {
                 KeyCode::Enter => {
                     if let Some(list) = popup.lists.get(popup.selected) {
                         let id_hash = list.id_hash.clone();
+                        let list_name = list.name.clone();
                         let question_id = popup.question_id.clone();
                         self.add_to_list_popup = None;
-                        self.start_add_to_list(&id_hash, &question_id);
+                        self.start_add_to_list(&id_hash, &question_id, &list_name);
                     }
                 }
                 _ => {}
@@ -549,6 +575,15 @@ impl App {
     }
 
     fn handle_tick(&mut self) {
+        // Auto-dismiss success messages
+        if let Some((_, ref mut ticks)) = self.success_message {
+            if *ticks == 0 {
+                self.success_message = None;
+            } else {
+                *ticks -= 1;
+            }
+        }
+
         match &mut self.screen {
             Screen::Home(state) => {
                 state.spinner_frame = state.spinner_frame.wrapping_add(1);
@@ -661,13 +696,13 @@ impl App {
                     state.error_message = Some(format!("{e}"));
                 }
             }
-            ApiResult::ListMutation(Ok(())) => {
-                // Re-fetch favorites to sync
+            ApiResult::ListMutation(Ok(()), msg) => {
+                self.success_message = Some((msg, 12)); // ~2 seconds at 5 ticks/sec
                 if matches!(self.screen, Screen::Lists(_)) {
                     self.start_fetch_favorites();
                 }
             }
-            ApiResult::ListMutation(Err(e)) => {
+            ApiResult::ListMutation(Err(e), _) => {
                 self.error_overlay = Some(format!("{e}"));
             }
             ApiResult::PopupFavorites(Ok(lists)) => {
@@ -766,8 +801,9 @@ impl App {
         let name = name.to_string();
 
         tokio::spawn(async move {
+            let msg = format!("List \"{}\" created", name);
             let result = client.create_favorite_list(&name).await;
-            let _ = tx.send(ApiResult::ListMutation(result));
+            let _ = tx.send(ApiResult::ListMutation(result, msg));
         });
     }
 
@@ -778,7 +814,7 @@ impl App {
 
         tokio::spawn(async move {
             let result = client.delete_favorite_list(&id_hash).await;
-            let _ = tx.send(ApiResult::ListMutation(result));
+            let _ = tx.send(ApiResult::ListMutation(result, "List deleted".into()));
         });
     }
 
@@ -790,7 +826,7 @@ impl App {
 
         tokio::spawn(async move {
             let result = client.remove_from_favorite(&id_hash, &question_id).await;
-            let _ = tx.send(ApiResult::ListMutation(result));
+            let _ = tx.send(ApiResult::ListMutation(result, "Removed from list".into()));
         });
     }
 
@@ -810,15 +846,16 @@ impl App {
         });
     }
 
-    fn start_add_to_list(&self, id_hash: &str, question_id: &str) {
+    fn start_add_to_list(&self, id_hash: &str, question_id: &str, list_name: &str) {
         let client = self.api_client.clone();
         let tx = self.api_tx.clone();
         let id_hash = id_hash.to_string();
         let question_id = question_id.to_string();
+        let msg = format!("Added to \"{}\"", list_name);
 
         tokio::spawn(async move {
             let result = client.add_to_favorite(&id_hash, &question_id).await;
-            let _ = tx.send(ApiResult::ListMutation(result));
+            let _ = tx.send(ApiResult::ListMutation(result, msg));
         });
     }
 
