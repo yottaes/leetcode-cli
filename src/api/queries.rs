@@ -12,6 +12,7 @@ query problemsetQuestionList($categorySlug: String, $limit: Int, $skip: Int, $fi
       title
       titleSlug
       difficulty
+      status
       acRate
       isPaidOnly
       topicTags {
@@ -42,7 +43,57 @@ query questionDetail($titleSlug: String!) {
       langSlug
       code
     }
+    exampleTestcaseList
+    sampleTestCase
     hints
+  }
+}
+"#;
+
+pub const GLOBAL_DATA_QUERY: &str = r#"
+query {
+  userStatus {
+    isSignedIn
+    username
+  }
+}
+"#;
+
+pub const FAVORITES_LIST_QUERY: &str = r#"
+query favoritesList {
+  favoritesLists {
+    allFavorites {
+      idHash
+      name
+      description
+      viewCount
+      creator
+      isWatched
+      isPublicFavorite
+      questions {
+        questionId
+        status
+        title
+        titleSlug
+      }
+    }
+  }
+}
+"#;
+
+pub const USER_PROFILE_QUERY: &str = r#"
+query getUserProfile($username: String!) {
+  matchedUser(username: $username) {
+    submitStats {
+      acSubmissionNum {
+        difficulty
+        count
+      }
+    }
+  }
+  allQuestionsCount {
+    difficulty
+    count
   }
 }
 "#;

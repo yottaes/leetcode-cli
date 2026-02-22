@@ -7,9 +7,18 @@ pub struct Config {
     pub workspace_dir: String,
     pub language: String,
     pub editor: String,
+    #[serde(default)]
+    pub leetcode_session: Option<String>,
+    #[serde(default)]
+    pub csrf_token: Option<String>,
 }
 
 impl Config {
+    pub fn is_authenticated(&self) -> bool {
+        self.leetcode_session.as_ref().is_some_and(|s| !s.is_empty())
+            && self.csrf_token.as_ref().is_some_and(|s| !s.is_empty())
+    }
+
     pub fn config_dir() -> PathBuf {
         dirs::home_dir()
             .expect("Could not find home directory")
@@ -18,6 +27,10 @@ impl Config {
 
     pub fn config_path() -> PathBuf {
         Self::config_dir().join("config.toml")
+    }
+
+    pub fn cache_path() -> PathBuf {
+        Self::config_dir().join("problems.json")
     }
 
     pub fn load() -> Result<Option<Config>> {

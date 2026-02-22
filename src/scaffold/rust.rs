@@ -65,6 +65,11 @@ pub fn scaffold_rust(workspace: &PathBuf, detail: &QuestionDetail) -> Result<Pat
         .map(|s| s.code.as_str())
         .unwrap_or("// No Rust snippet available for this problem\n");
 
+    // Add `struct Solution;` for LSP if snippet uses `impl Solution` but doesn't define the struct
+    if snippet.contains("impl Solution") && !snippet.contains("struct Solution") {
+        src.push_str("struct Solution;\n\n");
+    }
+
     src.push_str(snippet);
     src.push('\n');
 

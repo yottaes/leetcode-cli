@@ -9,29 +9,35 @@ use ratatui::{
 
 use crate::api::types::QuestionDetail;
 
+use super::rich_text::html_to_lines;
 use super::status_bar::render_status_bar;
 
 pub struct DetailState {
     pub detail: QuestionDetail,
-    pub rendered_content: String,
+    pub content_lines: Vec<Line<'static>>,
     pub scroll_offset: u16,
     pub content_height: u16,
 }
 
 impl DetailState {
     pub fn new(detail: QuestionDetail) -> Self {
-        let rendered_content = if detail.is_paid_only && detail.content.is_none() {
-            "Premium content — not available without authentication.".to_string()
+        let content_lines = if detail.is_paid_only && detail.content.is_none() {
+            vec![Line::from(Span::styled(
+                " Premium content — not available without authentication.",
+                Style::default().fg(Color::Yellow),
+            ))]
         } else if let Some(ref html) = detail.content {
-            html2text::from_read(html.as_bytes(), 100)
-                .unwrap_or_else(|_| "Failed to render content.".to_string())
+            html_to_lines(html)
         } else {
-            "No content available.".to_string()
+            vec![Line::from(Span::styled(
+                " No content available.",
+                Style::default().fg(Color::DarkGray),
+            ))]
         };
 
         Self {
             detail,
-            rendered_content,
+            content_lines,
             scroll_offset: 0,
             content_height: 0,
         }
@@ -56,9 +62,10 @@ impl DetailState {
                 self.scroll(-(self.content_height as i32 / 2));
                 DetailAction::None
             }
-            KeyCode::Char('o') => {
-                DetailAction::Scaffold(self.detail.title_slug.clone())
-            }
+            KeyCode::Char('o') => DetailAction::Scaffold(self.detail.title_slug.clone()),
+            KeyCode::Char('a') => DetailAction::AddToList(self.detail.question_id.clone()),
+            KeyCode::Char('r') => DetailAction::RunCode,
+            KeyCode::Char('s') => DetailAction::SubmitCode,
             KeyCode::Char('q') => DetailAction::Quit,
             KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => {
                 DetailAction::Quit
@@ -78,6 +85,9 @@ pub enum DetailAction {
     Back,
     Quit,
     Scaffold(String),
+    AddToList(String),
+    RunCode,
+    SubmitCode,
 }
 
 pub fn render_detail(frame: &mut Frame, area: Rect, state: &mut DetailState) {
@@ -93,28 +103,50 @@ pub fn render_detail(frame: &mut Frame, area: Rect, state: &mut DetailState) {
 
     // Content area
     state.content_height = layout[1].height;
-    let content_lines: Vec<Line> = state
-        .rendered_content
-        .lines()
-        .map(|l| Line::from(l.to_string()))
-        .collect();
 
-    let total_lines = content_lines.len() as u16;
+    let total_lines = state.content_lines.len() as u16;
     let max_scroll = total_lines.saturating_sub(state.content_height);
     if state.scroll_offset > max_scroll {
         state.scroll_offset = max_scroll;
     }
 
-    let content = Paragraph::new(content_lines)
-        .block(
-            Block::default()
-                .borders(Borders::NONE)
-                .style(Style::default()),
-        )
+    // Add left padding to each line
+    let padded_lines: Vec<Line> = state
+        .content_lines
+        .iter()
+        .map(|line| {
+            let mut spans = vec![Span::raw("  ")];
+            spans.extend(line.spans.iter().cloned());
+            Line::from(spans)
+        })
+        .collect();
+
+    let content = Paragraph::new(padded_lines)
+        .block(Block::default().borders(Borders::NONE))
         .wrap(Wrap { trim: false })
         .scroll((state.scroll_offset, 0));
 
     frame.render_widget(content, layout[1]);
+
+    // Scroll indicator
+    if total_lines > state.content_height {
+        let pct = if max_scroll > 0 {
+            (state.scroll_offset as f64 / max_scroll as f64 * 100.0) as u16
+        } else {
+            100
+        };
+        let indicator = format!(" {}% ", pct);
+        let ind_area = Rect::new(
+            layout[1].right().saturating_sub(indicator.len() as u16 + 1),
+            layout[1].y,
+            indicator.len() as u16,
+            1,
+        );
+        frame.render_widget(
+            Paragraph::new(indicator).style(Style::default().fg(Color::DarkGray)),
+            ind_area,
+        );
+    }
 
     // Status bar
     render_status_bar(
@@ -124,6 +156,9 @@ pub fn render_detail(frame: &mut Frame, area: Rect, state: &mut DetailState) {
             ("j/k", "Scroll"),
             ("d/u", "Half page"),
             ("o", "Open"),
+            ("a", "Add to List"),
+            ("r", "Run"),
+            ("s", "Submit"),
             ("b/Esc", "Back"),
             ("q", "Quit"),
         ],
@@ -154,19 +189,28 @@ fn render_detail_title(frame: &mut Frame, area: Rect, state: &DetailState) {
         ),
     ]);
 
-    let tags: String = d
+    let tags: Vec<Span> = d
         .topic_tags
         .iter()
-        .map(|t| t.name.as_str())
-        .collect::<Vec<_>>()
-        .join(", ");
+        .enumerate()
+        .flat_map(|(i, t)| {
+            let mut spans = vec![Span::styled(
+                format!(" {} ", t.name),
+                Style::default()
+                    .fg(Color::Black)
+                    .bg(Color::DarkGray),
+            )];
+            if i < d.topic_tags.len() - 1 {
+                spans.push(Span::raw(" "));
+            }
+            spans
+        })
+        .collect();
 
-    let tags_line = Line::from(vec![
-        Span::styled(" Tags: ", Style::default().fg(Color::DarkGray)),
-        Span::styled(tags, Style::default().fg(Color::Gray)),
-    ]);
+    let mut tags_line_spans = vec![Span::styled(" ", Style::default())];
+    tags_line_spans.extend(tags);
 
-    let title_block = Paragraph::new(vec![title_line, tags_line])
+    let title_block = Paragraph::new(vec![title_line, Line::from(tags_line_spans)])
         .block(
             Block::default()
                 .borders(Borders::BOTTOM)

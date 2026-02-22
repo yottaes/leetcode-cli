@@ -1,4 +1,4 @@
-use crossterm::event::{KeyCode, KeyEvent};
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use ratatui::{
     layout::{Constraint, Layout, Margin, Rect},
     style::{Color, Modifier, Style},
@@ -9,17 +9,28 @@ use ratatui::{
 
 use super::status_bar::render_status_bar;
 
-const FIELD_LABELS: [&str; 3] = ["Workspace Directory", "Language", "Editor"];
-const FIELD_DEFAULTS: [&str; 3] = ["~/leetcode", "rust", "vim"];
-const FIELD_HINTS: [&str; 3] = [
+const FIELD_COUNT: usize = 5;
+const FIELD_LABELS: [&str; FIELD_COUNT] = [
+    "Workspace Directory",
+    "Language",
+    "Editor",
+    "LeetCode Session Cookie",
+    "CSRF Token",
+];
+const FIELD_DEFAULTS: [&str; FIELD_COUNT] = ["~/leetcode", "rust", "vim", "", ""];
+const FIELD_HINTS: [&str; FIELD_COUNT] = [
     "Directory where problem projects will be created",
     "Default language for code snippets (rust, python3, cpp, java, ...)",
     "Editor command to open files (vim, nvim, code, ...)",
+    "(Optional) LEETCODE_SESSION cookie value for authentication",
+    "(Optional) csrftoken cookie value for authentication",
 ];
 
 pub struct SetupState {
-    pub fields: [String; 3],
+    pub fields: [String; FIELD_COUNT],
     pub active_field: usize,
+    pub is_editing: bool,
+    pub authenticated: bool,
 }
 
 impl SetupState {
@@ -29,19 +40,43 @@ impl SetupState {
                 FIELD_DEFAULTS[0].to_string(),
                 FIELD_DEFAULTS[1].to_string(),
                 FIELD_DEFAULTS[2].to_string(),
+                FIELD_DEFAULTS[3].to_string(),
+                FIELD_DEFAULTS[4].to_string(),
             ],
             active_field: 0,
+            is_editing: false,
+            authenticated: false,
+        }
+    }
+
+    pub fn from_config(config: &crate::config::Config) -> Self {
+        Self {
+            fields: [
+                config.workspace_dir.clone(),
+                config.language.clone(),
+                config.editor.clone(),
+                config.leetcode_session.clone().unwrap_or_default(),
+                config.csrf_token.clone().unwrap_or_default(),
+            ],
+            active_field: 3,
+            is_editing: true,
+            authenticated: config.is_authenticated(),
         }
     }
 
     pub fn handle_key(&mut self, key: KeyEvent) -> SetupAction {
+        // Ctrl+L for browser login
+        if key.code == KeyCode::Char('l') && key.modifiers.contains(KeyModifiers::CONTROL) {
+            return SetupAction::BrowserLogin;
+        }
+
         match key.code {
             KeyCode::Tab | KeyCode::Down => {
-                self.active_field = (self.active_field + 1) % 3;
+                self.active_field = (self.active_field + 1) % FIELD_COUNT;
                 SetupAction::None
             }
             KeyCode::BackTab | KeyCode::Up => {
-                self.active_field = (self.active_field + 2) % 3;
+                self.active_field = (self.active_field + FIELD_COUNT - 1) % FIELD_COUNT;
                 SetupAction::None
             }
             KeyCode::Char(c) => {
@@ -53,7 +88,13 @@ impl SetupState {
                 SetupAction::None
             }
             KeyCode::Enter => SetupAction::Submit,
-            KeyCode::Esc => SetupAction::Quit,
+            KeyCode::Esc => {
+                if self.is_editing {
+                    SetupAction::Cancel
+                } else {
+                    SetupAction::Quit
+                }
+            }
             _ => SetupAction::None,
         }
     }
@@ -62,19 +103,20 @@ impl SetupState {
 pub enum SetupAction {
     None,
     Submit,
+    Cancel,
     Quit,
+    BrowserLogin,
 }
 
 pub fn render_setup(frame: &mut Frame, state: &SetupState) {
     let area = frame.area();
 
-    // Center the form
-    let form_width = 60u16.min(area.width.saturating_sub(4));
-    let form_height = 16u16.min(area.height.saturating_sub(2));
+    let form_width = 70u16.min(area.width.saturating_sub(4));
+    let form_height = 24u16.min(area.height.saturating_sub(2));
     let form_area = centered_rect(form_width, form_height, area);
 
     let block = Block::default()
-        .title(" LeetCode CLI — Setup ")
+        .title(" LeetCode CLI \u{2014} Setup ")
         .borders(Borders::ALL)
         .border_style(Style::default().fg(Color::Cyan));
 
@@ -89,6 +131,9 @@ pub fn render_setup(frame: &mut Frame, state: &SetupState) {
         Constraint::Length(3), // field 0
         Constraint::Length(3), // field 1
         Constraint::Length(3), // field 2
+        Constraint::Length(3), // field 3
+        Constraint::Length(3), // field 4
+        Constraint::Length(1), // auth status
         Constraint::Length(1), // spacer
         Constraint::Length(1), // status bar
     ])
@@ -98,18 +143,40 @@ pub fn render_setup(frame: &mut Frame, state: &SetupState) {
         .style(Style::default().fg(Color::White));
     frame.render_widget(welcome, layout[0]);
 
-    for i in 0..3 {
+    for i in 0..FIELD_COUNT {
         render_field(frame, layout[i + 2], i, state);
     }
 
+    // Auth status line
+    let auth_line = if state.authenticated {
+        Line::from(Span::styled(
+            "\u{25cf} Authenticated",
+            Style::default().fg(Color::Green),
+        ))
+    } else {
+        Line::from(vec![
+            Span::styled(
+                "\u{25cb} Not authenticated",
+                Style::default().fg(Color::DarkGray),
+            ),
+            Span::styled(
+                "  (Ctrl+L: auto-login from browser)",
+                Style::default().fg(Color::DarkGray),
+            ),
+        ])
+    };
+    frame.render_widget(Paragraph::new(auth_line), layout[7]);
+
+    let esc_label = if state.is_editing { "Back" } else { "Quit" };
     render_status_bar(
         frame,
-        layout[6],
+        layout[9],
         &[
-            ("Tab/↓", "Next"),
-            ("Shift+Tab/↑", "Prev"),
+            ("Tab/\u{2193}", "Next"),
+            ("Shift+Tab/\u{2191}", "Prev"),
+            ("Ctrl+L", "Auto-login"),
             ("Enter", "Save"),
-            ("Esc", "Quit"),
+            ("Esc", esc_label),
         ],
     );
 }
@@ -125,7 +192,7 @@ fn render_field(frame: &mut Frame, area: Rect, index: usize, state: &SetupState)
     };
 
     let value = &state.fields[index];
-    let cursor = if is_active { "▎" } else { "" };
+    let cursor = if is_active { "\u{258e}" } else { "" };
 
     let layout = Layout::vertical([Constraint::Length(1), Constraint::Length(1), Constraint::Length(1)])
         .split(area);
@@ -142,8 +209,19 @@ fn render_field(frame: &mut Frame, area: Rect, index: usize, state: &SetupState)
         Style::default().fg(Color::Gray)
     };
 
+    // Mask session/csrf values with dots for security
+    let display_value = if (index == 3 || index == 4) && !value.is_empty() {
+        let shown = value.len().min(4);
+        format!("{}{}",
+            &value[..shown],
+            "\u{2022}".repeat(value.len().saturating_sub(shown))
+        )
+    } else {
+        value.clone()
+    };
+
     let input = Line::from(vec![
-        Span::styled(format!(" {value}"), input_style),
+        Span::styled(format!(" {display_value}"), input_style),
         Span::styled(cursor, Style::default().fg(Color::Cyan)),
     ]);
     let input_block = Paragraph::new(input).style(
