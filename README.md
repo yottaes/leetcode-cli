@@ -19,6 +19,18 @@ A terminal-based interface for browsing, solving, and submitting LeetCode proble
 
 This tool works by parsing your existing LeetCode session cookies directly from your web browser.
 
+0.  Add this into your bash/zsh configuration:
+
+```bash
+  lc() {
+    local dir
+    dir=$(leetcode-cli "$@")
+    if [ -n "$dir" ] && [ -d "$dir" ]; then
+      cd "$dir"
+    fi
+  }
+```
+
 1.  **Build the Project**
 
     ```bash
