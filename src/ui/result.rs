@@ -139,8 +139,8 @@ pub fn render_result(frame: &mut Frame, area: Rect, state: &mut ResultState) {
 
     // Title bar
     let kind_label = match state.kind {
-        ResultKind::Run => "Run",
-        ResultKind::Submit => "Submit",
+        ResultKind::Run => "Run (sample cases)",
+        ResultKind::Submit => "Submit (all cases)",
     };
     let title_line = Line::from(vec![
         Span::styled(
@@ -173,7 +173,12 @@ pub fn render_result(frame: &mut Frame, area: Rect, state: &mut ResultState) {
     if matches!(state.status, ResultStatus::Pending) {
         let spinner = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
         let s = spinner[state.spinner_frame % spinner.len()];
-        let loading = Paragraph::new(format!("\n  {s} Running..."))
+        let elapsed = state.spinner_frame / 10; // 100ms tick rate
+        let kind_verb = match state.kind {
+            ResultKind::Run => "Running",
+            ResultKind::Submit => "Submitting",
+        };
+        let loading = Paragraph::new(format!("\n  {s} {kind_verb}... ({elapsed}s)"))
             .style(Style::default().fg(Color::Yellow));
         frame.render_widget(loading, layout[1]);
     } else {
@@ -199,6 +204,7 @@ pub fn render_result(frame: &mut Frame, area: Rect, state: &mut ResultState) {
             ("j/k", "Scroll"),
             ("b/Esc", "Back"),
             ("q", "Quit"),
+            ("?", "Help"),
         ],
     );
 }

@@ -362,6 +362,7 @@ pub fn render_home(frame: &mut Frame, area: Rect, state: &mut HomeState) {
             ("L", "Lists"),
             ("S", "Settings"),
             ("q", "Quit"),
+            ("?", "Help"),
         ]
     };
     render_status_bar(frame, layout[3], &hints);

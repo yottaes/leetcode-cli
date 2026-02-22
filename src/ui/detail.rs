@@ -161,6 +161,7 @@ pub fn render_detail(frame: &mut Frame, area: Rect, state: &mut DetailState) {
             ("s", "Submit"),
             ("b/Esc", "Back"),
             ("q", "Quit"),
+            ("?", "Help"),
         ],
     );
 }
@@ -174,7 +175,7 @@ fn render_detail_title(frame: &mut Frame, area: Rect, state: &DetailState) {
         _ => Color::White,
     };
 
-    let title_line = Line::from(vec![
+    let mut title_spans = vec![
         Span::styled(
             format!(" {}. {} ", d.frontend_question_id, d.title),
             Style::default()
@@ -187,7 +188,21 @@ fn render_detail_title(frame: &mut Frame, area: Rect, state: &DetailState) {
                 .fg(diff_color)
                 .add_modifier(Modifier::BOLD),
         ),
-    ]);
+    ];
+
+    match d.status.as_deref() {
+        Some("ac") => title_spans.push(Span::styled(
+            " \u{2714} Solved",
+            Style::default().fg(Color::Green),
+        )),
+        Some("notac") => title_spans.push(Span::styled(
+            " \u{25cf} Attempted",
+            Style::default().fg(Color::Yellow),
+        )),
+        _ => {}
+    }
+
+    let title_line = Line::from(title_spans);
 
     let tags: Vec<Span> = d
         .topic_tags

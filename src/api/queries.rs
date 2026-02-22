@@ -46,6 +46,7 @@ query questionDetail($titleSlug: String!) {
     exampleTestcaseList
     sampleTestCase
     hints
+    status
   }
 }
 "#;
