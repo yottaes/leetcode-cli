@@ -118,7 +118,7 @@ impl ListsState {
 
     fn handle_problem_key(&mut self, key: KeyEvent) -> ListsAction {
         match key.code {
-            KeyCode::Esc => {
+            KeyCode::Esc | KeyCode::Char('b') => {
                 self.viewing_list = None;
                 ListsAction::None
             }
@@ -276,7 +276,8 @@ pub fn render_lists(frame: &mut Frame, area: Rect, state: &mut ListsState) {
             ("j/k", "Navigate"),
             ("Enter", "View"),
             ("d", "Remove"),
-            ("Esc", "Back"),
+            ("b/Esc", "Back"),
+            ("?", "Help"),
         ]
     } else {
         vec![
@@ -285,6 +286,7 @@ pub fn render_lists(frame: &mut Frame, area: Rect, state: &mut ListsState) {
             ("n", "New List"),
             ("d", "Delete"),
             ("Esc", "Back"),
+            ("?", "Help"),
         ]
     };
     render_status_bar(frame, layout[2], &hints);
@@ -297,7 +299,7 @@ pub fn render_lists(frame: &mut Frame, area: Rect, state: &mut ListsState) {
     // Confirm delete overlay
     if state.confirm_delete {
         if let Some(list) = state.selected_list() {
-            render_confirm_delete(frame, area, &list.name);
+            render_confirm_delete(frame, area, &list.name, list.questions.len());
         }
     }
 }
@@ -458,7 +460,7 @@ fn render_create_overlay(frame: &mut Frame, area: Rect, input: &str) {
     frame.render_widget(p, overlay);
 }
 
-fn render_confirm_delete(frame: &mut Frame, area: Rect, name: &str) {
+fn render_confirm_delete(frame: &mut Frame, area: Rect, name: &str, problem_count: usize) {
     let w = 44u16.min(area.width.saturating_sub(4));
     let h = 5u16;
     let x = area.x + (area.width.saturating_sub(w)) / 2;
@@ -466,7 +468,12 @@ fn render_confirm_delete(frame: &mut Frame, area: Rect, name: &str) {
     let overlay = Rect::new(x, y, w, h);
 
     frame.render_widget(Clear, overlay);
-    let text = format!("\n Delete \"{}\"?\n (y) Yes  (any) Cancel", name);
+    let count_hint = if problem_count > 0 {
+        format!(" ({problem_count} problems)")
+    } else {
+        String::new()
+    };
+    let text = format!("\n Delete \"{name}\"{count_hint}?\n (y) Yes  (any) Cancel");
     let p = Paragraph::new(text)
         .block(
             Block::default()

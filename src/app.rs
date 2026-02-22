@@ -60,6 +60,7 @@ pub struct App {
     pub should_quit: bool,
     pub error_overlay: Option<String>,
     pub success_message: Option<(String, u8)>, // (message, ticks remaining)
+    pub help_overlay: bool,
     pub login_prompt: bool,
     pub login_waiting: bool,
     pub last_opened_dir: Option<PathBuf>,
@@ -93,6 +94,7 @@ impl App {
             should_quit: false,
             error_overlay: None,
             success_message: None,
+            help_overlay: false,
             login_prompt,
             login_waiting: false,
             last_opened_dir: None,
@@ -309,6 +311,115 @@ impl App {
                 .wrap(Wrap { trim: true });
             frame.render_widget(error_block, overlay_area);
         }
+
+        // Help overlay
+        if self.help_overlay {
+            let help_text = match &self.screen {
+                Screen::Home(state) => {
+                    if state.search_mode {
+                        vec![
+                            ("Enter", "Apply search / open selected"),
+                            ("Esc", "Cancel search"),
+                            ("\u{2191}/\u{2193}", "Navigate results"),
+                            ("Backspace", "Delete char (empty exits)"),
+                        ]
+                    } else if state.filter.open {
+                        vec![
+                            ("j/k", "Navigate filters"),
+                            ("Space", "Toggle filter"),
+                            ("Esc/Enter/f", "Close filter"),
+                        ]
+                    } else {
+                        vec![
+                            ("j/k/\u{2191}/\u{2193}", "Navigate problems"),
+                            ("g/G", "Jump to top / bottom"),
+                            ("Enter", "View problem detail"),
+                            ("o", "Scaffold & open in editor"),
+                            ("a", "Add to list"),
+                            ("/", "Search"),
+                            ("f", "Filter by difficulty"),
+                            ("L", "Browse lists"),
+                            ("S", "Settings"),
+                            ("q", "Quit"),
+                        ]
+                    }
+                }
+                Screen::Detail(_) => vec![
+                    ("j/k/\u{2191}/\u{2193}", "Scroll"),
+                    ("d/u", "Half page down / up"),
+                    ("o", "Scaffold & open in editor"),
+                    ("a", "Add to list"),
+                    ("r", "Run code"),
+                    ("s", "Submit code"),
+                    ("b/Esc", "Back to list"),
+                    ("q", "Quit"),
+                ],
+                Screen::Result(_) => vec![
+                    ("j/k/\u{2191}/\u{2193}", "Scroll"),
+                    ("b/Esc", "Back to problem"),
+                    ("q", "Quit"),
+                ],
+                Screen::Lists(state) => {
+                    if state.viewing_list.is_some() {
+                        vec![
+                            ("j/k/\u{2191}/\u{2193}", "Navigate problems"),
+                            ("Enter", "View problem detail"),
+                            ("d", "Remove from list"),
+                            ("Esc", "Back to lists"),
+                        ]
+                    } else {
+                        vec![
+                            ("j/k/\u{2191}/\u{2193}", "Navigate lists"),
+                            ("Enter", "Open list"),
+                            ("n", "Create new list"),
+                            ("d", "Delete list"),
+                            ("Esc/q", "Back to home"),
+                        ]
+                    }
+                }
+                Screen::Setup(_) => vec![
+                    ("Tab/\u{2193}", "Next field"),
+                    ("Shift+Tab/\u{2191}", "Previous field"),
+                    ("Ctrl+L", "Auto-login from browser"),
+                    ("Enter", "Save settings"),
+                    ("Esc", "Cancel"),
+                ],
+            };
+
+            let max_key_len = help_text.iter().map(|(k, _)| k.len()).max().unwrap_or(0);
+            let lines: Vec<Line> = help_text
+                .iter()
+                .map(|(key, desc)| {
+                    Line::from(vec![
+                        Span::styled(
+                            format!("  {:>width$}", key, width = max_key_len),
+                            Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD),
+                        ),
+                        Span::styled(
+                            format!("  {desc}"),
+                            Style::default().fg(Color::White),
+                        ),
+                    ])
+                })
+                .collect();
+
+            let overlay_height = (lines.len() as u16 + 4).min(area.height.saturating_sub(4));
+            let overlay_width = 48u16.min(area.width.saturating_sub(4));
+            let x = area.x + (area.width.saturating_sub(overlay_width)) / 2;
+            let y = area.y + (area.height.saturating_sub(overlay_height)) / 2;
+            let overlay_area = Rect::new(x, y, overlay_width, overlay_height);
+
+            frame.render_widget(Clear, overlay_area);
+            let help_block = Paragraph::new(lines)
+                .block(
+                    Block::default()
+                        .title(" Keybindings ")
+                        .borders(Borders::ALL)
+                        .border_style(Style::default().fg(Color::Cyan)),
+                )
+                .style(Style::default().fg(Color::White));
+            frame.render_widget(help_block, overlay_area);
+        }
     }
 
     fn handle_key(
@@ -321,6 +432,12 @@ impl App {
             && key.modifiers.contains(crossterm::event::KeyModifiers::CONTROL)
         {
             self.should_quit = true;
+            return Ok(());
+        }
+
+        // Toggle help overlay
+        if key.code == KeyCode::Char('?') && !self.login_prompt && !self.login_waiting && self.error_overlay.is_none() && self.add_to_list_popup.is_none() {
+            self.help_overlay = !self.help_overlay;
             return Ok(());
         }
 
@@ -359,6 +476,12 @@ impl App {
                 }
                 _ => {}
             }
+            return Ok(());
+        }
+
+        // Dismiss help overlay on any key
+        if self.help_overlay {
+            self.help_overlay = false;
             return Ok(());
         }
 

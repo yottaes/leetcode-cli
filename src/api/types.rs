@@ -59,6 +59,7 @@ pub struct QuestionDetail {
     pub example_testcase_list: Option<Vec<String>>,
     pub sample_test_case: Option<String>,
     pub hints: Vec<String>,
+    pub status: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
