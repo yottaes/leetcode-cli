@@ -5,7 +5,7 @@ edition = "2024"
 description = "A terminal-based interface for browsing, solving, and submitting LeetCode problems"
 license = "MIT"
 repository = "https://github.com/yottaes/leetui"
-keywords = ["leetcode", "tui", "terminal", "rust", "competitive-programming"]
+keywords = ["leetcode", "tui", "terminal", "rust"]
 categories = ["command-line-utilities"]
 
 [[bin]]
