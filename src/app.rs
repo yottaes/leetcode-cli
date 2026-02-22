@@ -127,7 +127,7 @@ impl App {
             tokio::select! {
                 event = events.next() => {
                     match event? {
-                        Event::Key(key) => self.handle_key(key, terminal)?,
+                        Event::Key(key) => self.handle_key(key, terminal, events)?,
                         Event::Tick => self.handle_tick(),
                         Event::Resize(_, _) => {}
                     }
@@ -431,6 +431,7 @@ impl App {
         &mut self,
         key: crossterm::event::KeyEvent,
         terminal: &mut ratatui::DefaultTerminal,
+        events: &EventHandler,
     ) -> Result<()> {
         // Global quit: Ctrl+C always exits
         if key.code == KeyCode::Char('c')
@@ -654,7 +655,7 @@ impl App {
                         } else {
                             unreachable!()
                         };
-                        self.do_scaffold_and_edit(&detail, terminal)?;
+                        self.do_scaffold_and_edit(&detail, terminal, events)?;
                     }
                     DetailAction::RunCode => {
                         let detail = if let Screen::Detail(s) = &self.screen {
@@ -1196,6 +1197,7 @@ impl App {
         &mut self,
         detail: &QuestionDetail,
         terminal: &mut ratatui::DefaultTerminal,
+        events: &EventHandler,
     ) -> Result<()> {
         let config = match &self.config {
             Some(c) => c.clone(),
@@ -1216,6 +1218,8 @@ impl App {
                     .unwrap_or(&workspace);
                 self.last_opened_dir = Some(project_dir.to_path_buf());
 
+                // Pause event reader so editor gets exclusive stdin access
+                events.pause();
                 ratatui::restore();
 
                 let status = Command::new(&config.editor)
@@ -1224,6 +1228,7 @@ impl App {
                     .status();
 
                 *terminal = ratatui::init();
+                events.resume();
 
                 match status {
                     Ok(s) if s.success() => {}

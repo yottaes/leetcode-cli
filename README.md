@@ -1,74 +1,122 @@
 ![Home Screen](./assets/home_screen.png)
 ![Problem Overview](./assets/problem_overview.png)
 
-# LeetCode TUI
+# leetui
 
 A terminal-based interface for browsing, solving, and submitting LeetCode problems, built with **Rust** and **Ratatui**.
 
-> **Note:** This is a hobby project. I am currently focusing strictly on **Rust** support.
+> This is a hobby project. I'm currently focusing on **Rust** only. If you want to contribute, feel free to submit a PR or fork the repo.
 
-![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Crates.io](https://img.shields.io/crates/v/leetui.svg)](https://crates.io/crates/leetui)
 
 ## Features
 
-- **Browse Problems**: List view with filtering (Difficulty, Status) and search.
-- **Read**: Render problem descriptions (HTML to TUI) directly in the terminal.
-- **Scaffold**: Automatically generate a Rust project with boilerplate for the selected problem.
-- **Test & Submit**: Run code against LeetCode's test cases and submit solutions without leaving the CLI.
-- **Manage Lists**: Create and manage custom favorite lists.
-- **Stats**: View user profile statistics.
+- **Browse** all 3000+ problems with instant search and difficulty/status filters
+- **Read** problem descriptions rendered directly in the terminal
+- **Scaffold** a Rust project with boilerplate for any problem, then open it in your editor
+- **Run & Submit** code against LeetCode test cases without leaving the terminal
+- **Personal Lists** synced with LeetCode -- browse, create, delete, and add problems
+- **Stats** -- your solve counts right in the home screen
+- **Disk cache** for instant startup with background refresh
+- Press `?` on any screen for all available keybindings
 
-## Setup & Authentication
+## Installation
 
-This tool works by parsing your existing LeetCode session cookies directly from your web browser.
-
-0.  Add this into your bash/zsh configuration:
+### From crates.io
 
 ```bash
-  lc() {
-    local dir
-    dir=$(leetcode-cli "$@")
-    if [ -n "$dir" ] && [ -d "$dir" ]; then
-      cd "$dir"
-    fi
-  }
+cargo install leetui
 ```
 
-1.  **Build the Project**
+### From source
 
-    ```bash
-    cargo build --release
-    ```
+```bash
+git clone https://github.com/yottaes/leetui.git
+cd leetui
+cargo install --path .
+```
 
-2.  **Run with Permissions**
-    Because the application needs to read protected browser storage (cookies, check browser_login() function in app.rs) to log you in, you must run it with sufficient privileges.
-    - **Option A (Recommended for ease):** Run with `sudo`.
-      ```bash
-      sudo ./target/release/leetcode-tui
-      ```
-    - **Option B (Manual):** Run without sudo. Your operating system (macOS/Linux) may repeatedly prompt you to access the system Keyring or browser directories for every browser installed on your system.
+### Shell wrapper (recommended)
+
+When you scaffold a problem with `o`, the CLI opens your editor inside the problem directory. To auto-cd into that directory after exiting, add this to your `~/.zshrc` or `~/.bashrc`:
+
+```bash
+lc() {
+  local dir
+  dir=$(leetui "$@")
+  if [ -n "$dir" ] && [ -d "$dir" ]; then
+    cd "$dir"
+  fi
+}
+```
+
+Then use `lc` instead of `leetui`. This is needed because a child process can't change its parent shell's working directory -- the wrapper captures the path printed to stdout and cd's into it.
+
+Without the wrapper everything works the same, you just won't auto-cd after exiting.
+
+## Authentication
+
+The CLI reads your LeetCode session cookies directly from your browser (via the [rookie](https://crates.io/crates/rookie) crate). No manual token pasting needed.
+
+On first launch you'll be prompted to log in. The app will attempt to extract cookies automatically. If that fails, it will open `leetcode.com/accounts/login` in your browser -- log in there, then press Enter to retry.
+
+**macOS note:** Your OS may show a Keychain access prompt. Grant access so the app can read browser cookies.
 
 ## Controls
 
-| Key       | Action                        |
-| :-------- | :---------------------------- |
-| `j` / `k` | Navigate lists                |
-| `Enter`   | View details / Select         |
-| `/`       | Search problems               |
-| `f`       | Filter (Difficulty, Solved)   |
-| `o`       | **Scaffold** & open in editor |
-| `r`       | **Run** code                  |
-| `s`       | **Submit** solution           |
-| `L`       | Manage Lists                  |
-| `q`       | Quit                          |
+Press `?` on any screen for the full keybinding reference. Here are the essentials:
+
+### Home
+
+| Key | Action |
+|:----------|:-------------------------------|
+| `j` / `k` | Navigate |
+| `Enter` | View problem |
+| `/` | Search |
+| `f` | Filter by difficulty / status |
+| `o` | Scaffold & open in editor |
+| `a` | Add to list |
+| `L` | Browse personal lists |
+| `S` | Settings |
+| `q` | Quit |
+
+### Problem Detail
+
+| Key | Action |
+|:----------|:-------------------------------|
+| `j` / `k` | Scroll |
+| `d` / `u` | Half page down / up |
+| `o` | Scaffold & open in editor |
+| `r` | Run code (sample cases) |
+| `s` | Submit solution (all cases) |
+| `a` | Add to list |
+| `b` / `Esc`| Back |
+
+### Lists
+
+| Key | Action |
+|:----------|:-------------------------------|
+| `Enter` | Open list / View problem |
+| `n` | Create new list |
+| `d` | Delete list / Remove problem |
+| `Esc` | Back |
+
+## Configuration
+
+Settings are stored in `~/.leetcode-cli/config.toml`. You can edit them from within the app by pressing `S`, or edit the file directly:
+
+- **workspace_dir** -- where scaffolded projects are created (default: `~/leetcode`)
+- **language** -- `rust`, `python3`, `cpp`, `java`, `javascript`, `typescript`, `golang`
+- **editor** -- command to open files (default: `nvim`)
 
 ## Contributing
 
-Contributions are welcome! Since this is a hobby project, I am prioritizing **Rust-specific features**.
+This is a hobby project and I'm prioritizing Rust-specific features. That said:
 
-- Feel free to **fork** the repo and modify it as you wish.
-- If you have a fix or feature, submit a **PR** directly.
+- Feel free to **fork** the repo and do whatever you want with it
+- PRs are welcome -- submit directly, no need to open an issue first
 
 ## License
 
-This project is open source and available under the [MIT License](LICENSE).
+[MIT](LICENSE)

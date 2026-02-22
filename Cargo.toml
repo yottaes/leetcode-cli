@@ -1,7 +1,16 @@
 [package]
-name = "leetcode-cli"
+name = "leetui"
 version = "0.1.0"
 edition = "2024"
+description = "A terminal-based interface for browsing, solving, and submitting LeetCode problems"
+license = "MIT"
+repository = "https://github.com/yottaes/leetui"
+keywords = ["leetcode", "tui", "terminal", "rust", "competitive-programming"]
+categories = ["command-line-utilities"]
+
+[[bin]]
+name = "leetui"
+path = "src/main.rs"
 
 [dependencies]
 ratatui = "0.30"
