@@ -5,7 +5,13 @@
 
 A terminal-based interface for browsing, solving, and submitting LeetCode problems, built with **Rust** and **Ratatui**.
 
-> This is a hobby project. I'm currently focusing on **Rust** only. If you want to contribute, feel free to submit a PR or fork the repo.
+> ⚠️ **Disclaimer (Please read before judging my code):** > This is 100% a personal hobby project. The codebase is heavily AI-generated, held together by duct tape and prayers, and exists solely because I wanted a convenient way to do LeetCode. It is _not_ a polished product built for promotion, and it's definitely not supposed to impress anyone.
+> **A few crucial notes:**
+>
+> - Currently, and for an undefined amount of time, **this tool strictly supports Rust**.
+> - It proudly wears the "It Works On My Machine™" badge. Specifically, it has _only_ been tested with **Rust + Neovim (`nvim`) inside the Ghostty terminal**.
+>
+> If you want to use it, fork it, or fix it—you're more than welcome! Just don't expect enterprise-grade architecture.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Crates.io](https://img.shields.io/crates/v/leetui.svg)](https://crates.io/crates/leetui)
@@ -27,6 +33,7 @@ A terminal-based interface for browsing, solving, and submitting LeetCode proble
 
 ```bash
 cargo install leetui
+
 ```
 
 ### From source
@@ -35,6 +42,7 @@ cargo install leetui
 git clone https://github.com/yottaes/leetui.git
 cd leetui
 cargo install --path .
+
 ```
 
 ### Shell wrapper (recommended)
@@ -49,6 +57,7 @@ lc() {
     cd "$dir"
   fi
 }
+
 ```
 
 Then use `lc` instead of `leetui`. This is needed because a child process can't change its parent shell's working directory -- the wrapper captures the path printed to stdout and cd's into it.
@@ -69,54 +78,54 @@ Press `?` on any screen for the full keybinding reference. Here are the essentia
 
 ### Home
 
-| Key | Action |
-|:----------|:-------------------------------|
-| `j` / `k` | Navigate |
-| `Enter` | View problem |
-| `/` | Search |
-| `f` | Filter by difficulty / status |
-| `o` | Scaffold & open in editor |
-| `a` | Add to list |
-| `L` | Browse personal lists |
-| `S` | Settings |
-| `q` | Quit |
+| Key       | Action                        |
+| --------- | ----------------------------- |
+| `j` / `k` | Navigate                      |
+| `Enter`   | View problem                  |
+| `/`       | Search                        |
+| `f`       | Filter by difficulty / status |
+| `o`       | Scaffold & open in editor     |
+| `a`       | Add to list                   |
+| `L`       | Browse personal lists         |
+| `S`       | Settings                      |
+| `q`       | Quit                          |
 
 ### Problem Detail
 
-| Key | Action |
-|:----------|:-------------------------------|
-| `j` / `k` | Scroll |
-| `d` / `u` | Half page down / up |
-| `o` | Scaffold & open in editor |
-| `r` | Run code (sample cases) |
-| `s` | Submit solution (all cases) |
-| `a` | Add to list |
-| `b` / `Esc`| Back |
+| Key         | Action                      |
+| ----------- | --------------------------- |
+| `j` / `k`   | Scroll                      |
+| `d` / `u`   | Half page down / up         |
+| `o`         | Scaffold & open in editor   |
+| `r`         | Run code (sample cases)     |
+| `s`         | Submit solution (all cases) |
+| `a`         | Add to list                 |
+| `b` / `Esc` | Back                        |
 
 ### Lists
 
-| Key | Action |
-|:----------|:-------------------------------|
-| `Enter` | Open list / View problem |
-| `n` | Create new list |
-| `d` | Delete list / Remove problem |
-| `Esc` | Back |
+| Key     | Action                       |
+| ------- | ---------------------------- |
+| `Enter` | Open list / View problem     |
+| `n`     | Create new list              |
+| `d`     | Delete list / Remove problem |
+| `Esc`   | Back                         |
 
 ## Configuration
 
 Settings are stored in `~/.leetcode-cli/config.toml`. You can edit them from within the app by pressing `S`, or edit the file directly:
 
 - **workspace_dir** -- where scaffolded projects are created (default: `~/leetcode`)
-- **language** -- `rust`, `python3`, `cpp`, `java`, `javascript`, `typescript`, `golang`
+- **language** -- `rust` _(Note: other languages might appear here, but only Rust is supported/tested)_
 - **editor** -- command to open files (default: `nvim`)
 
 ## Contributing
 
-This is a hobby project and I'm prioritizing Rust-specific features. That said:
+This is a hobby project and I'm strictly prioritizing Rust-specific features. That said:
 
 - Feel free to **fork** the repo and do whatever you want with it
 - PRs are welcome -- submit directly, no need to open an issue first
 
 ## License
 
-[MIT](LICENSE)
+[MIT](https://www.google.com/search?q=LICENSE)
